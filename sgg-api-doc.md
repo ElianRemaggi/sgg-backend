@@ -2,7 +2,7 @@
 
 **Repositorio:** `sgg-api`
 **Stack:** Java 21 + Spring Boot 3.3.5 + PostgreSQL 16 + Flyway + SpringDoc OpenAPI
-**Versión:** 1.1
+**Versión:** 1.2
 **Fecha:** 21 de febrero de 2026
 
 ---
@@ -111,9 +111,11 @@ sgg-api/
 │   │   │   │   └── dto/
 │   │   │   │       ├── GymInfoDto.java
 │   │   │   │       ├── GymMemberDto.java
-│   │   │   │       ├── JoinRequestDto.java
+│   │   │   │       ├── MembershipDto.java
+│   │   │   │       ├── CreateGymRequest.java
+│   │   │   │       ├── UpdateGymRequest.java
 │   │   │   │       ├── ApproveMemberRequest.java
-│   │   │   │       └── MembershipDto.java
+│   │   │   │       └── UpdateMemberRoleRequest.java
 │   │   │   │
 │   │   │   ├── coaching/
 │   │   │   │   ├── controller/
@@ -1445,7 +1447,7 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ## 10. Testing
 
-**62 tests unitarios** — todos passing. Framework: JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`). No levanta contexto Spring (excepto `SggApiApplicationTests`).
+**70 tests unitarios** — todos passing. Framework: JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`). No levanta contexto Spring (excepto `SggApiApplicationTests`).
 
 ### Archivos de test
 
@@ -1453,8 +1455,8 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 |---|---|---|
 | `SggApiApplicationTests` | 1 | Context load con H2 |
 | `UserServiceTest` | 6 | syncUser (crear/actualizar), getProfile, updateProfile |
-| `GymServiceTest` | 7 | createGym, getGymInfo, searchGyms |
-| `MembershipServiceTest` | 13 | requestJoin, approve, reject, block, listMembers, getUserMemberships |
+| `GymServiceTest` | 10 | createGym, getGymInfo, searchGyms, updateSettings |
+| `MembershipServiceTest` | 18 | requestJoin, approve, reject, block, listMembers, getUserMemberships, listCoaches, updateRole |
 | `CoachAssignmentServiceTest` | 7 | assign, unassign, listByGym, listByCoach |
 | `RoutineTemplateServiceTest` | 8 | create (con blocks/exercises), listByGym, getById, delete |
 | `RoutineAssignmentServiceTest` | 7 | assign (fechas válidas/inválidas), getActiveRoutineForMember |
@@ -1523,19 +1525,23 @@ mvn test
 ### Gyms
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/gyms` | Autenticado | Crea un gimnasio (el creador queda como ADMIN) |
-| GET | `/api/gyms/{gymId}` | Autenticado | Info del gimnasio |
-| GET | `/api/gyms/search?q=` | Público | Busca gimnasios por nombre/slug |
+| POST | `/api/gyms` | Autenticado | Crea un gimnasio (el creador queda como ADMIN_COACH) |
+| GET | `/api/gyms/{gymId}/info` | Autenticado | Info del gimnasio + rol del usuario |
+| PUT | `/api/gyms/{gymId}/admin/settings` | ADMIN | Actualiza nombre, descripción, logo, routineCycle |
+| GET | `/api/gyms/search?q=` | Público | Busca gimnasios por nombre |
 
 ### Memberships
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
 | POST | `/api/gyms/{gymId}/join-request` | Autenticado | Solicita unirse al gym |
 | GET | `/api/users/me/memberships` | Autenticado | Mis membresías activas/pendientes |
-| GET | `/api/gyms/{gymId}/admin/members` | ADMIN | Lista todos los miembros |
-| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/approve` | ADMIN | Aprueba solicitud |
-| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/reject` | ADMIN | Rechaza solicitud |
+| GET | `/api/gyms/{gymId}/admin/members` | ADMIN | Lista todos los miembros con estado y rol |
+| GET | `/api/gyms/{gymId}/admin/coaches` | ADMIN | Lista miembros con rol COACH o ADMIN_COACH activos |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/role` | ADMIN | Cambia el rol de un miembro activo |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/approve` | ADMIN | Aprueba solicitud pendiente |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/reject` | ADMIN | Rechaza solicitud pendiente |
 | PUT | `/api/gyms/{gymId}/admin/members/{memberId}/block` | ADMIN | Bloquea miembro |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/expiration` | ADMIN | Actualiza fecha de vencimiento |
 
 ### Coach Assignments
 | Método | Path | Rol | Descripción |
