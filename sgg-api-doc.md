@@ -1,9 +1,9 @@
 # SGG-API — Documento Técnico del Backend
 
-**Repositorio:** `sgg-api`  
-**Stack:** Java 21 + Spring Boot 3.x + PostgreSQL 16 + Flyway  
-**Versión:** 1.0  
-**Fecha:** 19 de febrero de 2026  
+**Repositorio:** `sgg-api`
+**Stack:** Java 21 + Spring Boot 3.3.5 + PostgreSQL 16 + Flyway + SpringDoc OpenAPI
+**Versión:** 1.1
+**Fecha:** 21 de febrero de 2026
 
 ---
 
@@ -32,12 +32,14 @@ Dependencies:
   - Spring Security
   - Spring Data JPA
   - Spring Validation (Bean Validation)
-  - OAuth2 Resource Server
+  - OAuth2 Resource Server     (comentado en dev — activar al integrar Supabase)
   - PostgreSQL Driver
   - Flyway Migration
   - Lombok
   - Spring Boot DevTools (solo dev)
   - Spring Boot Actuator
+  - SpringDoc OpenAPI 2.6.0   (Swagger UI en /doc)
+  - H2 Database               (test scope — para SggApiApplicationTests)
 ```
 
 ### 2.2 Estructura de Directorios Completa
@@ -52,6 +54,7 @@ sgg-api/
 │   │   │   ├── common/
 │   │   │   │   ├── config/
 │   │   │   │   │   ├── SecurityConfig.java
+│   │   │   │   │   ├── OpenApiConfig.java            (Swagger / SpringDoc)
 │   │   │   │   │   ├── CorsConfig.java
 │   │   │   │   │   ├── WebMvcConfig.java
 │   │   │   │   │   └── JacksonConfig.java
@@ -59,10 +62,10 @@ sgg-api/
 │   │   │   │   │   ├── TenantContext.java
 │   │   │   │   │   ├── TenantInterceptor.java
 │   │   │   │   │   ├── TenantHibernateFilterAspect.java
+│   │   │   │   │   ├── DevUserInterceptor.java       (solo dev — reemplazar por JWT en prod)
 │   │   │   │   │   ├── GymAccessChecker.java
 │   │   │   │   │   ├── CurrentUser.java              (annotation)
-│   │   │   │   │   ├── CurrentUserResolver.java
-│   │   │   │   │   └── JwtToUserConverter.java
+│   │   │   │   │   └── CurrentUserResolver.java
 │   │   │   │   ├── exception/
 │   │   │   │   │   ├── GlobalExceptionHandler.java
 │   │   │   │   │   ├── BusinessException.java
@@ -196,17 +199,21 @@ sgg-api/
 │   │
 │   └── test/
 │       └── java/com/sgg/
-│           ├── common/
-│           │   └── TenantIsolationTest.java
-│           ├── identity/
+│           ├── SggApiApplicationTests.java           (context load — H2)
+│           ├── identity/service/
 │           │   └── UserServiceTest.java
-│           ├── tenancy/
-│           │   ├── MembershipServiceTest.java
-│           │   └── MembershipIntegrationTest.java
-│           ├── training/
-│           │   └── RoutineTemplateServiceTest.java
-│           └── tracking/
-│               └── TrackingServiceTest.java
+│           ├── tenancy/service/
+│           │   ├── GymServiceTest.java
+│           │   └── MembershipServiceTest.java
+│           ├── coaching/service/
+│           │   └── CoachAssignmentServiceTest.java
+│           ├── training/service/
+│           │   ├── RoutineTemplateServiceTest.java
+│           │   └── RoutineAssignmentServiceTest.java
+│           ├── tracking/service/
+│           │   └── TrackingServiceTest.java
+│           └── schedule/service/
+│               └── ScheduleServiceTest.java
 │
 ├── pom.xml
 ├── Dockerfile
@@ -228,7 +235,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sgg}
     username: ${SPRING_DATASOURCE_USERNAME:sgg_admin}
-    password: ${SPRING_DATASOURCE_PASSWORD:}
+    password: ${SPRING_DATASOURCE_PASSWORD:sgg_local_pass}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -247,11 +254,12 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${SUPABASE_JWKS_URI}
+  # JWT/OAuth2 deshabilitado en dev — activar cuando configures Supabase:
+  # security:
+  #   oauth2:
+  #     resourceserver:
+  #       jwt:
+  #         jwk-set-uri: ${SUPABASE_JWKS_URI}
 
 server:
   port: 8080
@@ -260,16 +268,24 @@ logging:
   level:
     com.sgg: DEBUG
     org.hibernate.SQL: DEBUG
-    org.springframework.security: DEBUG
+    org.springframework.security: INFO
 
-# Custom properties
+springdoc:
+  swagger-ui:
+    path: /doc
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /doc/api-docs
+
 app:
   cors:
     web-origin: ${APP_CORS_WEB_ORIGIN:http://localhost:3000}
-    additional-origins: ${APP_CORS_ADDITIONAL_ORIGINS:}
+    additional-origins: ${APP_CORS_ADDITIONAL_ORIGINS:http://localhost:8081,http://localhost:19006}
   supabase:
-    url: ${SUPABASE_URL}
-    jwt-secret: ${SUPABASE_JWT_SECRET}
+    url: ${SUPABASE_URL:disabled}
+    jwt-secret: ${SUPABASE_JWT_SECRET:dev-secret-placeholder}
+  dev-mode: ${APP_DEV_MODE:true}
 ```
 
 ### 3.2 application-dev.yml
@@ -461,82 +477,67 @@ public class RoutineTemplate {
 }
 ```
 
-### 4.2 Seguridad — Spring Security + Supabase JWT
+### 4.2 Seguridad — Dev Mode (sin JWT)
 
-**SecurityConfig.java:**
+> **Estado actual:** modo desarrollo. La autenticación JWT con Supabase está comentada.
+> Para activarla: descomentar `oauth2-resource-server` en `pom.xml` y la sección
+> `security.oauth2` en `application.yml`, y reemplazar `SecurityConfig` + `DevUserInterceptor`
+> por la versión con `JwtToUserConverter`.
+
+**SecurityConfig.java** (dev-mode):
 
 ```java
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
-
-    @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
-    private String jwksUri;
-
-    private final JwtToUserConverter jwtToUserConverter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
             .cors(Customizer.withDefaults())
-            .csrf(csrf -> csrf.disable())
+            .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                    .jwkSetUri(jwksUri)
-                    .jwtAuthenticationConverter(jwtToUserConverter)
-                )
-            )
-            .authorizeHttpRequests(auth -> auth
-                // Endpoints públicos
-                .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/api/auth/sync").permitAll()
-                .requestMatchers("/api/gyms/search").permitAll()
-                .requestMatchers("/actuator/health").permitAll()
-                // Endpoints por rol (validación adicional en controllers)
-                .requestMatchers("/api/gyms/*/admin/**").authenticated()
-                .requestMatchers("/api/gyms/*/coach/**").authenticated()
-                .requestMatchers("/api/gyms/*/member/**").authenticated()
-                // Todo lo demás requiere auth
-                .anyRequest().authenticated()
-            );
+            // DEV MODE: todos los endpoints son públicos
+            // En producción reemplazar por autenticación JWT con Supabase
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }
 }
 ```
 
-**JwtToUserConverter.java** — Convierte el JWT de Supabase en un usuario local:
+**DevUserInterceptor.java** — Simula un usuario autenticado via header HTTP:
 
 ```java
+@Slf4j
 @Component
-@RequiredArgsConstructor
-public class JwtToUserConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+public class DevUserInterceptor implements HandlerInterceptor {
 
-    private final UserRepository userRepository;
+    private static final String DEV_USER_HEADER = "X-Dev-User-Id";
 
     @Override
-    public AbstractAuthenticationToken convert(Jwt jwt) {
-        String supabaseUid = jwt.getSubject(); // sub = user UUID en Supabase
-
-        User user = userRepository.findBySupabaseUid(supabaseUid)
-            .orElse(null); // Puede ser null en /auth/sync (primer login)
-
-        if (user != null) {
-            TenantContext.setUserId(user.getId());
+    public boolean preHandle(HttpServletRequest request,
+                             HttpServletResponse response,
+                             Object handler) {
+        String userIdHeader = request.getHeader(DEV_USER_HEADER);
+        if (userIdHeader != null) {
+            try {
+                Long userId = Long.valueOf(userIdHeader.trim());
+                TenantContext.setUserId(userId);
+                log.debug("[DEV] userId={} seteado desde header {}", userId, DEV_USER_HEADER);
+            } catch (NumberFormatException e) {
+                log.warn("[DEV] Header {} inválido: {}", DEV_USER_HEADER, userIdHeader);
+            }
         }
-
-        // Authorities vacías — los permisos se validan contra gym_members por gym
-        List<GrantedAuthority> authorities = List.of();
-
-        JwtAuthenticationToken token = new JwtAuthenticationToken(jwt, authorities);
-        return token;
+        return true;
     }
 }
 ```
+
+> En producción este interceptor se reemplaza por `JwtToUserConverter` que extrae
+> el `userId` del JWT de Supabase y lo inyecta en `TenantContext`.
 
 **GymAccessChecker.java** — Verifica roles por gimnasio (usado en @PreAuthorize):
 
@@ -589,7 +590,50 @@ public class GymAccessChecker {
 }
 ```
 
-### 4.3 Resolución del Usuario Actual
+### 4.3 Documentación API — Swagger UI
+
+Disponible en **`GET /doc`** (UI interactiva) y **`GET /doc/api-docs`** (JSON OpenAPI).
+
+**OpenApiConfig.java:**
+
+```java
+@Configuration
+public class OpenApiConfig {
+
+    static {
+        // Oculta @CurrentUser de la UI — se resuelve internamente desde el header
+        SpringDocUtils.getConfig().addAnnotationsToIgnore(CurrentUser.class);
+    }
+
+    @Bean
+    public OpenAPI sggOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title("SGG API")
+                        .description("Backend multi-tenant para gimnasios. ...")
+                        .version("1.0.0"))
+                .addSecurityItem(new SecurityRequirement().addList("Dev-Auth"))
+                .components(new Components()
+                        .addSecuritySchemes("Dev-Auth", new SecurityScheme()
+                                .name("X-Dev-User-Id")
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .description("ID del usuario (dev-mode). Ej: 1")));
+    }
+}
+```
+
+**Uso de Swagger en dev:**
+1. Abrir `http://localhost:8080/doc`
+2. Click en **Authorize** (candado)
+3. Ingresar el `userId` (ej: `1`) en el campo `X-Dev-User-Id`
+4. Ejecutar cualquier endpoint — el header se envía automáticamente
+
+Todos los controllers están anotados con `@Tag` (agrupa endpoints) y `@Operation` (describe cada método, incluyendo el rol requerido en el prefijo: `[ADMIN]`, `[COACH]`, `[MEMBER]`).
+
+---
+
+### 4.4 Resolución del Usuario Actual
 
 **CurrentUser.java** — Annotation para inyectar el usuario actual en controllers:
 
@@ -627,7 +671,7 @@ public UserProfileDto getProfile(@CurrentUser Long userId) {
 }
 ```
 
-### 4.4 Exception Handling Global
+### 4.5 Exception Handling Global
 
 ```java
 @RestControllerAdvice
@@ -1399,39 +1443,140 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ---
 
-## 10. Testing Strategy
+## 10. Testing
 
-### Prioridades para un solo dev:
+**62 tests unitarios** — todos passing. Framework: JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`). No levanta contexto Spring (excepto `SggApiApplicationTests`).
 
-1. **Tests unitarios de services** — Lógica de negocio pura (mocks de repositories).
-2. **Tests de integración de multi-tenancy** — Verificar que los filtros por gym_id funcionan correctamente. Este es el test más importante del sistema.
-3. **Tests de integración de endpoints** — Con `@SpringBootTest` y TestContainers para PostgreSQL real.
+### Archivos de test
 
-### Test crítico: Aislamiento de Tenant
+| Archivo | Tests | Qué cubre |
+|---|---|---|
+| `SggApiApplicationTests` | 1 | Context load con H2 |
+| `UserServiceTest` | 6 | syncUser (crear/actualizar), getProfile, updateProfile |
+| `GymServiceTest` | 7 | createGym, getGymInfo, searchGyms |
+| `MembershipServiceTest` | 13 | requestJoin, approve, reject, block, listMembers, getUserMemberships |
+| `CoachAssignmentServiceTest` | 7 | assign, unassign, listByGym, listByCoach |
+| `RoutineTemplateServiceTest` | 8 | create (con blocks/exercises), listByGym, getById, delete |
+| `RoutineAssignmentServiceTest` | 7 | assign (fechas válidas/inválidas), getActiveRoutineForMember |
+| `TrackingServiceTest` | 7 | complete (nuevo/existente), undo, getProgress (% cálculo) |
+| `ScheduleServiceTest` | 6 | create, delete (ok/not found/gym erróneo), listActive |
+
+### Patrón de test
 
 ```java
-@SpringBootTest
-@Testcontainers
-class TenantIsolationTest {
+@ExtendWith(MockitoExtension.class)
+class MembershipServiceTest {
+
+    @Mock GymMemberRepository gymMemberRepository;
+    @Mock GymRepository gymRepository;
+
+    @InjectMocks MembershipService membershipService;
 
     @Test
-    void routineFromGymA_notVisibleInGymB() {
-        // Crear rutina en gym A
-        TenantContext.setGymId(gymAId);
-        RoutineTemplate template = createTemplate("Rutina Gym A");
+    void requestJoin_success() {
+        when(gymRepository.findById(1L)).thenReturn(Optional.of(new Gym()));
+        when(gymMemberRepository.findByUserIdAndGymIdAndStatusIn(any(), any(), any()))
+            .thenReturn(Optional.empty());
+        when(gymMemberRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        // Buscar desde gym B — NO debe encontrarla
-        TenantContext.setGymId(gymBId);
-        List<RoutineTemplate> templates = templateRepository.findAll();
+        GymMemberDto result = membershipService.requestJoin(10L, 1L);
 
-        assertThat(templates).isEmpty();
+        assertThat(result.getStatus()).isEqualTo(MembershipStatus.PENDING);
     }
 }
 ```
 
+### Notas sobre TenantContext en tests
+
+`GymService.getGymInfo()` usa `TenantContext.getUserId()` (ThreadLocal estático). En los tests que lo requieren se setea manualmente y se limpia en `@AfterEach`:
+
+```java
+@AfterEach
+void clearTenant() {
+    TenantContext.clear();
+}
+```
+
+### Ejecutar tests
+
+```bash
+# Desde la raíz del proyecto
+./mvnw test
+
+# O con Maven local
+mvn test
+```
+
 ---
 
-## 11. Convenciones del Proyecto
+## 11. Referencia de Endpoints
+
+> Ver listado interactivo en `http://localhost:8080/doc`
+
+### Auth & Users
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/auth/sync` | Público | Sincroniza/crea usuario tras login en Supabase |
+| GET | `/api/users/me` | Autenticado | Perfil del usuario actual |
+| PUT | `/api/users/me` | Autenticado | Actualiza nombre / avatar |
+
+### Gyms
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms` | Autenticado | Crea un gimnasio (el creador queda como ADMIN) |
+| GET | `/api/gyms/{gymId}` | Autenticado | Info del gimnasio |
+| GET | `/api/gyms/search?q=` | Público | Busca gimnasios por nombre/slug |
+
+### Memberships
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms/{gymId}/join-request` | Autenticado | Solicita unirse al gym |
+| GET | `/api/users/me/memberships` | Autenticado | Mis membresías activas/pendientes |
+| GET | `/api/gyms/{gymId}/admin/members` | ADMIN | Lista todos los miembros |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/approve` | ADMIN | Aprueba solicitud |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/reject` | ADMIN | Rechaza solicitud |
+| PUT | `/api/gyms/{gymId}/admin/members/{memberId}/block` | ADMIN | Bloquea miembro |
+
+### Coach Assignments
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms/{gymId}/admin/coach-assignments` | ADMIN | Asigna coach a miembro |
+| DELETE | `/api/gyms/{gymId}/admin/coach-assignments/{assignmentId}` | ADMIN | Desasigna coach |
+| GET | `/api/gyms/{gymId}/admin/coach-assignments` | ADMIN | Lista asignaciones del gym |
+| GET | `/api/gyms/{gymId}/coach/my-assignments` | COACH | Mis miembros asignados |
+
+### Routine Templates
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms/{gymId}/coach/routine-templates` | COACH | Crea plantilla con bloques y ejercicios |
+| GET | `/api/gyms/{gymId}/coach/routine-templates` | COACH | Lista plantillas del gym |
+| GET | `/api/gyms/{gymId}/coach/routine-templates/{templateId}` | COACH | Detalle de plantilla |
+| DELETE | `/api/gyms/{gymId}/coach/routine-templates/{templateId}` | COACH | Elimina plantilla |
+
+### Routine Assignments
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms/{gymId}/coach/routine-assignments` | COACH | Asigna plantilla a miembro con fechas |
+| GET | `/api/gyms/{gymId}/member/routine` | MEMBER | Mi rutina activa hoy |
+| GET | `/api/gyms/{gymId}/coach/members/{memberId}/routine` | COACH | Rutina activa de un miembro |
+
+### Tracking
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| POST | `/api/gyms/{gymId}/member/tracking/complete` | MEMBER | Marca ejercicio como completado |
+| POST | `/api/gyms/{gymId}/member/tracking/undo` | MEMBER | Revierte ejercicio a no completado |
+| GET | `/api/gyms/{gymId}/member/tracking/progress/{assignmentId}` | MEMBER | Progreso (% y detalle por bloque) |
+
+### Schedule
+| Método | Path | Rol | Descripción |
+|---|---|---|---|
+| GET | `/api/gyms/{gymId}/schedule` | Público | Lista actividades activas del gym |
+| POST | `/api/gyms/{gymId}/admin/schedule` | ADMIN | Agrega actividad al horario |
+| DELETE | `/api/gyms/{gymId}/admin/schedule/{activityId}` | ADMIN | Desactiva actividad (soft delete) |
+
+---
+
+## 12. Convenciones del Proyecto
 
 | Aspecto | Convención |
 |---|---|
