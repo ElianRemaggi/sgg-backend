@@ -1,6 +1,7 @@
 package com.sgg.tenancy.repository;
 
 import com.sgg.tenancy.entity.GymMember;
+import com.sgg.tenancy.entity.MemberRole;
 import com.sgg.tenancy.entity.MembershipStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,8 @@ public interface GymMemberRepository extends JpaRepository<GymMember, Long> {
     List<GymMember> findByGymId(Long gymId);
 
     boolean existsByUserIdAndGymIdAndStatus(Long userId, Long gymId, MembershipStatus status);
+
+    List<GymMember> findByGymIdAndRoleInAndStatus(Long gymId, List<MemberRole> roles, MembershipStatus status);
 
     /**
      * Query sin filtro Hibernate — necesaria para el TenantInterceptor

@@ -116,6 +116,31 @@ public class MembershipService {
     }
 
     @Transactional(readOnly = true)
+    public List<GymMemberDto> listCoaches(Long gymId) {
+        return gymMemberRepository
+                .findByGymIdAndRoleInAndStatus(gymId,
+                        List.of(MemberRole.COACH, MemberRole.ADMIN_COACH),
+                        MembershipStatus.ACTIVE)
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    public GymMemberDto updateRole(Long gymId, Long memberId, MemberRole newRole) {
+        GymMember member = gymMemberRepository.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found: " + memberId));
+
+        validateTenant(member, gymId);
+
+        if (member.getStatus() != MembershipStatus.ACTIVE) {
+            throw new BusinessException("Solo se puede cambiar el rol de miembros ACTIVE");
+        }
+
+        member.setRole(newRole);
+        return toDto(gymMemberRepository.save(member));
+    }
+
+    @Transactional(readOnly = true)
     public List<GymMemberDto> listMembers(Long gymId) {
         return gymMemberRepository.findByGymId(gymId).stream()
                 .map(this::toDto)
