@@ -1,0 +1,13 @@
+spring:
+  jpa:
+    show-sql: false
+
+logging:
+  level:
+    com.sgg: INFO
+    org.hibernate.SQL: WARN
+
+app:
+  cors:
+    web-origin: ${APP_CORS_WEB_ORIGIN}
+  dev-mode: false
