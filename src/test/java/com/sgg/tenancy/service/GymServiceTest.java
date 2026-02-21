@@ -5,6 +5,7 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.common.security.TenantContext;
 import com.sgg.tenancy.dto.CreateGymRequest;
 import com.sgg.tenancy.dto.GymInfoDto;
+import com.sgg.tenancy.dto.UpdateGymRequest;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
 import com.sgg.tenancy.entity.MemberRole;
@@ -154,5 +155,48 @@ class GymServiceTest {
         List<GymInfoDto> results = gymService.searchGyms("xyz");
 
         assertThat(results).isEmpty();
+    }
+
+    // --- updateSettings ---
+
+    @Test
+    void updateSettings_updatesOnlyProvidedFields() {
+        UpdateGymRequest request = new UpdateGymRequest();
+        request.setName("New Name");
+        request.setRoutineCycle("MONTHLY");
+
+        when(gymRepository.findById(10L)).thenReturn(Optional.of(gym));
+        when(gymRepository.save(any(Gym.class))).thenAnswer(i -> i.getArgument(0));
+
+        GymInfoDto result = gymService.updateSettings(10L, request);
+
+        assertThat(result.getName()).isEqualTo("New Name");
+        assertThat(result.getRoutineCycle()).isEqualTo("MONTHLY");
+        assertThat(result.getSlug()).isEqualTo("fitness-center"); // slug no cambia
+        verify(gymRepository).save(any(Gym.class));
+    }
+
+    @Test
+    void updateSettings_throwsResourceNotFoundException_whenGymNotFound() {
+        UpdateGymRequest request = new UpdateGymRequest();
+        request.setName("Any");
+
+        when(gymRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> gymService.updateSettings(99L, request))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void updateSettings_doesNotModifyFields_whenNullsProvided() {
+        UpdateGymRequest request = new UpdateGymRequest(); // todos null
+
+        when(gymRepository.findById(10L)).thenReturn(Optional.of(gym));
+        when(gymRepository.save(any(Gym.class))).thenAnswer(i -> i.getArgument(0));
+
+        GymInfoDto result = gymService.updateSettings(10L, request);
+
+        assertThat(result.getName()).isEqualTo("Fitness Center");
+        assertThat(result.getRoutineCycle()).isEqualTo("WEEKLY");
     }
 }

@@ -5,6 +5,7 @@ import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.common.security.TenantContext;
 import com.sgg.tenancy.dto.CreateGymRequest;
 import com.sgg.tenancy.dto.GymInfoDto;
+import com.sgg.tenancy.dto.UpdateGymRequest;
 import com.sgg.tenancy.entity.Gym;
 import com.sgg.tenancy.entity.GymMember;
 import com.sgg.tenancy.entity.MemberRole;
@@ -69,6 +70,26 @@ public class GymService {
         }
 
         return toDto(gym, userRole);
+    }
+
+    public GymInfoDto updateSettings(Long gymId, UpdateGymRequest request) {
+        Gym gym = gymRepository.findById(gymId)
+                .orElseThrow(() -> new ResourceNotFoundException("Gym not found: " + gymId));
+
+        if (request.getName() != null) {
+            gym.setName(request.getName());
+        }
+        if (request.getDescription() != null) {
+            gym.setDescription(request.getDescription());
+        }
+        if (request.getLogoUrl() != null) {
+            gym.setLogoUrl(request.getLogoUrl());
+        }
+        if (request.getRoutineCycle() != null) {
+            gym.setRoutineCycle(Gym.RoutineCycle.valueOf(request.getRoutineCycle()));
+        }
+
+        return toDto(gymRepository.save(gym), null);
     }
 
     @Transactional(readOnly = true)

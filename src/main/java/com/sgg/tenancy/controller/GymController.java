@@ -4,12 +4,14 @@ import com.sgg.common.dto.ApiResponse;
 import com.sgg.common.security.CurrentUser;
 import com.sgg.tenancy.dto.CreateGymRequest;
 import com.sgg.tenancy.dto.GymInfoDto;
+import com.sgg.tenancy.dto.UpdateGymRequest;
 import com.sgg.tenancy.service.GymService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -35,6 +37,15 @@ public class GymController {
     public ResponseEntity<ApiResponse<GymInfoDto>> getGymInfo(
             @PathVariable Long gymId) {
         return ResponseEntity.ok(ApiResponse.success(gymService.getGymInfo(gymId)));
+    }
+
+    @Operation(summary = "[ADMIN] Actualizar configuración del gimnasio", description = "Actualiza nombre, descripción, logo y/o ciclo de rutina. Solo se modifican los campos enviados (null = sin cambio). El slug no es editable.")
+    @PreAuthorize("@gymAccess.hasRole(#gymId, 'ADMIN')")
+    @PutMapping("/api/gyms/{gymId}/admin/settings")
+    public ResponseEntity<ApiResponse<GymInfoDto>> updateSettings(
+            @PathVariable Long gymId,
+            @RequestBody @Valid UpdateGymRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(gymService.updateSettings(gymId, request)));
     }
 
     @Operation(summary = "Buscar gimnasios", description = "Búsqueda pública por nombre. No requiere autenticación.")
