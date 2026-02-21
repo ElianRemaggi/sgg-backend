@@ -220,6 +220,73 @@ class MembershipServiceTest {
         assertThat(result).hasSize(2);
     }
 
+    // --- listCoaches ---
+
+    @Test
+    void listCoaches_returnsOnlyCoachAndAdminCoachRoles() {
+        GymMember coach = new GymMember();
+        coach.setId(200L);
+        coach.setUserId(2L);
+        coach.setGymId(GYM_ID);
+        coach.setRole(MemberRole.COACH);
+        coach.setStatus(MembershipStatus.ACTIVE);
+
+        User coachUser = new User();
+        coachUser.setId(2L);
+        coachUser.setFullName("Coach Ana");
+        coachUser.setEmail("ana@gym.com");
+
+        when(gymMemberRepository.findByGymIdAndRoleInAndStatus(eq(GYM_ID), any(), eq(MembershipStatus.ACTIVE)))
+                .thenReturn(List.of(coach));
+        when(userRepository.findById(2L)).thenReturn(Optional.of(coachUser));
+
+        List<GymMemberDto> result = membershipService.listCoaches(GYM_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getRole()).isEqualTo("COACH");
+    }
+
+    // --- updateRole ---
+
+    @Test
+    void updateRole_success_promotesActiveMemberToCoach() {
+        when(gymMemberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(activeMember));
+        when(gymMemberRepository.save(activeMember)).thenReturn(activeMember);
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+
+        GymMemberDto result = membershipService.updateRole(GYM_ID, MEMBER_ID, MemberRole.COACH);
+
+        assertThat(activeMember.getRole()).isEqualTo(MemberRole.COACH);
+        assertThat(result).isNotNull();
+        verify(gymMemberRepository).save(activeMember);
+    }
+
+    @Test
+    void updateRole_throws_whenMemberIsNotActive() {
+        when(gymMemberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(pendingMember));
+
+        assertThatThrownBy(() -> membershipService.updateRole(GYM_ID, MEMBER_ID, MemberRole.COACH))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("ACTIVE");
+    }
+
+    @Test
+    void updateRole_throws_whenTenantViolation() {
+        activeMember.setGymId(999L);
+        when(gymMemberRepository.findById(MEMBER_ID)).thenReturn(Optional.of(activeMember));
+
+        assertThatThrownBy(() -> membershipService.updateRole(GYM_ID, MEMBER_ID, MemberRole.COACH))
+                .isInstanceOf(TenantViolationException.class);
+    }
+
+    @Test
+    void updateRole_throws_whenMemberNotFound() {
+        when(gymMemberRepository.findById(MEMBER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> membershipService.updateRole(GYM_ID, MEMBER_ID, MemberRole.COACH))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
     // --- getUserMemberships ---
 
     @Test

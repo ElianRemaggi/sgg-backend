@@ -5,6 +5,8 @@ import com.sgg.common.security.CurrentUser;
 import com.sgg.tenancy.dto.ApproveMemberRequest;
 import com.sgg.tenancy.dto.GymMemberDto;
 import com.sgg.tenancy.dto.MembershipDto;
+import com.sgg.tenancy.dto.UpdateMemberRoleRequest;
+import com.sgg.tenancy.entity.MemberRole;
 import com.sgg.tenancy.service.MembershipService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,6 +45,26 @@ public class MembershipController {
     }
 
     // --- Endpoints para admins (panel web) ---
+
+    @Operation(summary = "[ADMIN] Listar coaches", description = "Retorna los miembros con rol COACH o ADMIN_COACH que tienen membresía activa.")
+    @PreAuthorize("@gymAccess.hasRole(#gymId, 'ADMIN')")
+    @GetMapping("/api/gyms/{gymId}/admin/coaches")
+    public ResponseEntity<ApiResponse<List<GymMemberDto>>> listCoaches(
+            @PathVariable Long gymId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(membershipService.listCoaches(gymId)));
+    }
+
+    @Operation(summary = "[ADMIN] Cambiar rol de miembro", description = "Actualiza el rol de un miembro activo. Roles válidos: MEMBER, COACH, ADMIN, ADMIN_COACH.")
+    @PreAuthorize("@gymAccess.hasRole(#gymId, 'ADMIN')")
+    @PutMapping("/api/gyms/{gymId}/admin/members/{memberId}/role")
+    public ResponseEntity<ApiResponse<GymMemberDto>> updateRole(
+            @PathVariable Long gymId,
+            @PathVariable Long memberId,
+            @RequestBody @Valid UpdateMemberRoleRequest request) {
+        return ResponseEntity.ok(ApiResponse.success(
+                membershipService.updateRole(gymId, memberId, MemberRole.valueOf(request.getRole()))));
+    }
 
     @Operation(summary = "[ADMIN] Listar miembros", description = "Retorna todos los miembros del gimnasio con su estado y rol. Requiere rol ADMIN.")
     @PreAuthorize("@gymAccess.hasRole(#gymId, 'ADMIN')")
