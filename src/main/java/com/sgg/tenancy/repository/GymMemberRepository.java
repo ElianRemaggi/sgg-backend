@@ -23,6 +23,10 @@ public interface GymMemberRepository extends JpaRepository<GymMember, Long> {
 
     List<GymMember> findByGymIdAndRoleInAndStatus(Long gymId, List<MemberRole> roles, MembershipStatus status);
 
+    long countByGymIdAndStatus(Long gymId, MembershipStatus status);
+
+    long countByGymIdAndRoleInAndStatus(Long gymId, List<MemberRole> roles, MembershipStatus status);
+
     /**
      * Query sin filtro Hibernate — necesaria para el TenantInterceptor
      * que valida la membresía ANTES de setear el TenantContext.

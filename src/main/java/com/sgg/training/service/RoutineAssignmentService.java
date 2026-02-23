@@ -2,8 +2,11 @@ package com.sgg.training.service;
 
 import com.sgg.common.exception.BusinessException;
 import com.sgg.common.exception.ResourceNotFoundException;
+import com.sgg.identity.entity.User;
+import com.sgg.identity.repository.UserRepository;
 import com.sgg.training.dto.AssignRoutineRequest;
 import com.sgg.training.dto.MemberRoutineDto;
+import com.sgg.training.dto.RoutineAssignmentDto;
 import com.sgg.training.dto.TemplateBlockDto;
 import com.sgg.training.dto.TemplateExerciseDto;
 import com.sgg.training.entity.RoutineAssignment;
@@ -25,13 +28,14 @@ public class RoutineAssignmentService {
 
     private final RoutineAssignmentRepository assignmentRepository;
     private final RoutineTemplateRepository templateRepository;
+    private final UserRepository userRepository;
 
-    public RoutineAssignment assign(Long gymId, Long assignedBy, AssignRoutineRequest request) {
+    public RoutineAssignmentDto assign(Long gymId, Long assignedBy, AssignRoutineRequest request) {
         if (request.getEndsAt().isBefore(request.getStartsAt())) {
             throw new BusinessException("La fecha de fin debe ser posterior a la de inicio");
         }
 
-        templateRepository.findById(request.getTemplateId())
+        RoutineTemplate template = templateRepository.findById(request.getTemplateId())
                 .orElseThrow(() -> new ResourceNotFoundException("Template not found: " + request.getTemplateId()));
 
         RoutineAssignment assignment = new RoutineAssignment();
@@ -42,7 +46,9 @@ public class RoutineAssignmentService {
         assignment.setStartsAt(request.getStartsAt());
         assignment.setEndsAt(request.getEndsAt());
 
-        return assignmentRepository.save(assignment);
+        RoutineAssignment saved = assignmentRepository.save(assignment);
+        User member = userRepository.findById(request.getMemberUserId()).orElse(null);
+        return toDto(saved, template, member);
     }
 
     /**
@@ -79,8 +85,29 @@ public class RoutineAssignmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<RoutineAssignment> getAssignmentsForMember(Long gymId, Long memberUserId) {
-        return assignmentRepository.findByMemberUserIdAndGymId(memberUserId, gymId);
+    public List<RoutineAssignmentDto> getAssignmentsForMember(Long gymId, Long memberUserId) {
+        return assignmentRepository.findByMemberUserIdAndGymId(memberUserId, gymId).stream()
+                .map(a -> {
+                    RoutineTemplate t = templateRepository.findById(a.getTemplateId()).orElse(null);
+                    User member = userRepository.findById(a.getMemberUserId()).orElse(null);
+                    return toDto(a, t, member);
+                })
+                .toList();
+    }
+
+    private RoutineAssignmentDto toDto(RoutineAssignment a, RoutineTemplate template, User member) {
+        return new RoutineAssignmentDto(
+                a.getId(),
+                a.getGymId(),
+                a.getTemplateId(),
+                template != null ? template.getName() : null,
+                a.getMemberUserId(),
+                member != null ? member.getFullName() : null,
+                member != null ? member.getAvatarUrl() : null,
+                a.getAssignedBy(),
+                a.getStartsAt(),
+                a.getEndsAt()
+        );
     }
 
     private TemplateBlockDto blockToDto(TemplateBlock b) {

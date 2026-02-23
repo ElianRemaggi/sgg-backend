@@ -108,11 +108,15 @@ class GymServiceTest {
         when(gymRepository.findById(10L)).thenReturn(Optional.of(gym));
         when(gymMemberRepository.findByUserIdAndGymIdAndStatusIn(eq(1L), eq(10L), any()))
                 .thenReturn(Optional.of(member));
+        when(gymMemberRepository.countByGymIdAndStatus(10L, MembershipStatus.ACTIVE)).thenReturn(5L);
+        when(gymMemberRepository.countByGymIdAndRoleInAndStatus(eq(10L), any(), eq(MembershipStatus.ACTIVE))).thenReturn(2L);
 
         GymInfoDto result = gymService.getGymInfo(10L);
 
         assertThat(result.getId()).isEqualTo(10L);
         assertThat(result.getUserRole()).isEqualTo("MEMBER");
+        assertThat(result.getMemberCount()).isEqualTo(5);
+        assertThat(result.getCoachCount()).isEqualTo(2);
     }
 
     @Test
@@ -120,11 +124,14 @@ class GymServiceTest {
         TenantContext.clear(); // no userId set
 
         when(gymRepository.findById(10L)).thenReturn(Optional.of(gym));
+        when(gymMemberRepository.countByGymIdAndStatus(10L, MembershipStatus.ACTIVE)).thenReturn(3L);
+        when(gymMemberRepository.countByGymIdAndRoleInAndStatus(eq(10L), any(), eq(MembershipStatus.ACTIVE))).thenReturn(1L);
 
         GymInfoDto result = gymService.getGymInfo(10L);
 
         assertThat(result.getId()).isEqualTo(10L);
         assertThat(result.getUserRole()).isNull();
+        assertThat(result.getMemberCount()).isEqualTo(3);
     }
 
     @Test

@@ -2,8 +2,11 @@ package com.sgg.training.service;
 
 import com.sgg.common.exception.BusinessException;
 import com.sgg.common.exception.ResourceNotFoundException;
+import com.sgg.identity.entity.User;
+import com.sgg.identity.repository.UserRepository;
 import com.sgg.training.dto.AssignRoutineRequest;
 import com.sgg.training.dto.MemberRoutineDto;
+import com.sgg.training.dto.RoutineAssignmentDto;
 import com.sgg.training.entity.RoutineAssignment;
 import com.sgg.training.entity.RoutineTemplate;
 import com.sgg.training.entity.TemplateBlock;
@@ -26,6 +29,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class RoutineAssignmentServiceTest {
@@ -35,6 +39,9 @@ class RoutineAssignmentServiceTest {
 
     @Mock
     private RoutineTemplateRepository templateRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private RoutineAssignmentService routineAssignmentService;
@@ -80,6 +87,12 @@ class RoutineAssignmentServiceTest {
         assignment.setAssignedBy(COACH_ID);
         assignment.setStartsAt(LocalDate.now().minusDays(5));
         assignment.setEndsAt(LocalDate.now().plusDays(25));
+
+        User memberUser = new User();
+        memberUser.setId(MEMBER_ID);
+        memberUser.setFullName("Miembro Prueba");
+        memberUser.setEmail("miembro@test.com");
+        lenient().when(userRepository.findById(MEMBER_ID)).thenReturn(Optional.of(memberUser));
     }
 
     // --- assign ---
@@ -95,9 +108,11 @@ class RoutineAssignmentServiceTest {
         when(templateRepository.findById(TEMPLATE_ID)).thenReturn(Optional.of(template));
         when(assignmentRepository.save(any(RoutineAssignment.class))).thenReturn(assignment);
 
-        RoutineAssignment result = routineAssignmentService.assign(GYM_ID, COACH_ID, request);
+        RoutineAssignmentDto result = routineAssignmentService.assign(GYM_ID, COACH_ID, request);
 
         assertThat(result).isNotNull();
+        assertThat(result.getTemplateName()).isEqualTo("Rutina Full Body");
+        assertThat(result.getMemberName()).isEqualTo("Miembro Prueba");
         verify(assignmentRepository).save(any(RoutineAssignment.class));
     }
 
@@ -163,11 +178,14 @@ class RoutineAssignmentServiceTest {
     void getAssignmentsForMember_returnsAllAssignments() {
         when(assignmentRepository.findByMemberUserIdAndGymId(MEMBER_ID, GYM_ID))
                 .thenReturn(List.of(assignment));
+        when(templateRepository.findById(TEMPLATE_ID)).thenReturn(Optional.of(template));
 
-        List<RoutineAssignment> result = routineAssignmentService.getAssignmentsForMember(GYM_ID, MEMBER_ID);
+        List<RoutineAssignmentDto> result = routineAssignmentService.getAssignmentsForMember(GYM_ID, MEMBER_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getMemberUserId()).isEqualTo(MEMBER_ID);
+        assertThat(result.get(0).getTemplateName()).isEqualTo("Rutina Full Body");
+        assertThat(result.get(0).getMemberName()).isEqualTo("Miembro Prueba");
     }
 
     @Test
@@ -175,7 +193,7 @@ class RoutineAssignmentServiceTest {
         when(assignmentRepository.findByMemberUserIdAndGymId(MEMBER_ID, GYM_ID))
                 .thenReturn(List.of());
 
-        List<RoutineAssignment> result = routineAssignmentService.getAssignmentsForMember(GYM_ID, MEMBER_ID);
+        List<RoutineAssignmentDto> result = routineAssignmentService.getAssignmentsForMember(GYM_ID, MEMBER_ID);
 
         assertThat(result).isEmpty();
     }

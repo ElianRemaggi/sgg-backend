@@ -2,8 +2,8 @@
 
 **Repositorio:** `sgg-api`
 **Stack:** Java 21 + Spring Boot 3.3.5 + PostgreSQL 16 + Flyway + SpringDoc OpenAPI
-**Versión:** 1.2
-**Fecha:** 21 de febrero de 2026
+**Versión:** 1.3
+**Fecha:** 22 de febrero de 2026
 
 ---
 
@@ -50,6 +50,7 @@ sgg-api/
 │   ├── main/
 │   │   ├── java/com/sgg/
 │   │   │   ├── SggApiApplication.java
+│   │   │   ├── package-info.java             (@FilterDef global — fix multi-tenant)
 │   │   │   │
 │   │   │   ├── common/
 │   │   │   │   ├── config/
@@ -64,6 +65,7 @@ sgg-api/
 │   │   │   │   │   ├── TenantHibernateFilterAspect.java
 │   │   │   │   │   ├── DevUserInterceptor.java       (solo dev — reemplazar por JWT en prod)
 │   │   │   │   │   ├── GymAccessChecker.java
+│   │   │   │   │   ├── JwtToUserConverter.java       (stub — activar al integrar Supabase)
 │   │   │   │   │   ├── CurrentUser.java              (annotation)
 │   │   │   │   │   └── CurrentUserResolver.java
 │   │   │   │   ├── exception/
@@ -74,8 +76,7 @@ sgg-api/
 │   │   │   │   │   └── TenantViolationException.java
 │   │   │   │   └── dto/
 │   │   │   │       ├── ApiResponse.java
-│   │   │   │       ├── ApiError.java
-│   │   │   │       └── PageResponse.java
+│   │   │   │       └── ApiError.java
 │   │   │   │
 │   │   │   ├── identity/
 │   │   │   │   ├── controller/
@@ -109,8 +110,8 @@ sgg-api/
 │   │   │   │   │   ├── MemberRole.java            (enum)
 │   │   │   │   │   └── MembershipStatus.java      (enum)
 │   │   │   │   └── dto/
-│   │   │   │       ├── GymInfoDto.java
-│   │   │   │       ├── GymMemberDto.java
+│   │   │   │       ├── GymInfoDto.java            ← v1.3: +memberCount, +coachCount
+│   │   │   │       ├── GymMemberDto.java          ← v1.3: +avatarUrl, +assignedCoachId, +assignedCoachName
 │   │   │   │       ├── MembershipDto.java
 │   │   │   │       ├── CreateGymRequest.java
 │   │   │   │       ├── UpdateGymRequest.java
@@ -123,7 +124,7 @@ sgg-api/
 │   │   │   │   ├── service/
 │   │   │   │   │   └── CoachAssignmentService.java
 │   │   │   │   ├── repository/
-│   │   │   │   │   └── CoachAssignmentRepository.java
+│   │   │   │   │   └── CoachAssignmentRepository.java  ← v1.3: +findActiveByGymId()
 │   │   │   │   ├── entity/
 │   │   │   │   │   └── CoachAssignment.java
 │   │   │   │   └── dto/
@@ -135,20 +136,21 @@ sgg-api/
 │   │   │   │   │   ├── RoutineTemplateController.java
 │   │   │   │   │   └── RoutineAssignmentController.java
 │   │   │   │   ├── service/
-│   │   │   │   │   ├── RoutineTemplateService.java
-│   │   │   │   │   └── RoutineAssignmentService.java
+│   │   │   │   │   ├── RoutineTemplateService.java     ← v1.3: resuelve createdByName
+│   │   │   │   │   └── RoutineAssignmentService.java   ← v1.3: retorna RoutineAssignmentDto
 │   │   │   │   ├── repository/
 │   │   │   │   │   ├── RoutineTemplateRepository.java
 │   │   │   │   │   ├── TemplateBlockRepository.java
 │   │   │   │   │   ├── TemplateExerciseRepository.java
-│   │   │   │   │   └── RoutineAssignmentRepository.java
+│   │   │   │   │   └── RoutineAssignmentRepository.java  ← v1.3: +findActiveByMemberUserIdAndGymId()
 │   │   │   │   ├── entity/
 │   │   │   │   │   ├── RoutineTemplate.java
 │   │   │   │   │   ├── TemplateBlock.java
 │   │   │   │   │   ├── TemplateExercise.java
 │   │   │   │   │   └── RoutineAssignment.java
 │   │   │   │   └── dto/
-│   │   │   │       ├── RoutineTemplateDto.java
+│   │   │   │       ├── RoutineTemplateDto.java         ← v1.3: +createdByName
+│   │   │   │       ├── RoutineAssignmentDto.java       ← v1.3: NUEVO
 │   │   │   │       ├── TemplateBlockDto.java
 │   │   │   │       ├── TemplateExerciseDto.java
 │   │   │   │       ├── CreateTemplateRequest.java
@@ -157,16 +159,16 @@ sgg-api/
 │   │   │   │
 │   │   │   ├── tracking/
 │   │   │   │   ├── controller/
-│   │   │   │   │   └── TrackingController.java
+│   │   │   │   │   └── TrackingController.java         ← v1.3: +endpoint coach progress
 │   │   │   │   ├── service/
-│   │   │   │   │   └── TrackingService.java
+│   │   │   │   │   └── TrackingService.java            ← v1.3: +lastActivityAt, +getProgressByMember()
 │   │   │   │   ├── repository/
-│   │   │   │   │   └── ExerciseCompletionRepository.java
+│   │   │   │   │   └── ExerciseCompletionRepository.java  ← v1.3: +findLastActivityByAssignmentId()
 │   │   │   │   ├── entity/
 │   │   │   │   │   └── ExerciseCompletion.java
 │   │   │   │   └── dto/
 │   │   │   │       ├── CompleteExerciseRequest.java
-│   │   │   │       └── ProgressDto.java
+│   │   │   │       └── ProgressDto.java               ← v1.3: +lastActivityAt, BlockProgressDto +percentComplete
 │   │   │   │
 │   │   │   └── schedule/
 │   │   │       ├── controller/
@@ -176,10 +178,10 @@ sgg-api/
 │   │   │       ├── repository/
 │   │   │       │   └── ScheduleActivityRepository.java
 │   │   │       ├── entity/
-│   │   │       │   └── ScheduleActivity.java
+│   │   │       │   └── ScheduleActivity.java           ← v1.3: +instructor, +maxCapacity
 │   │   │       └── dto/
-│   │   │           ├── ScheduleActivityDto.java
-│   │   │           └── CreateScheduleRequest.java
+│   │   │           ├── ScheduleActivityDto.java        ← v1.3: +instructor, +maxCapacity
+│   │   │           └── CreateScheduleRequest.java      ← v1.3: +instructor, +maxCapacity
 │   │   │
 │   │   └── resources/
 │   │       ├── application.yml
@@ -197,7 +199,8 @@ sgg-api/
 │   │           ├── V9__create_routine_assignments.sql
 │   │           ├── V10__create_exercise_completions.sql
 │   │           ├── V11__create_schedule_activities.sql
-│   │           └── V12__create_indexes.sql
+│   │           ├── V12__create_indexes.sql
+│   │           └── V13__add_schedule_fields.sql        ← v1.3: NUEVO
 │   │
 │   └── test/
 │       └── java/com/sgg/
@@ -1025,7 +1028,7 @@ public class ExerciseCompletion {
 }
 ```
 
-### 5.9 ScheduleActivity
+### 5.9 ScheduleActivity *(v1.3: +instructor, +maxCapacity)*
 
 ```java
 @Entity
@@ -1059,6 +1062,11 @@ public class ScheduleActivity {
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    private String instructor;             // ← v1.3
+
+    @Column(name = "max_capacity")
+    private Integer maxCapacity;           // ← v1.3
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -1255,11 +1263,215 @@ CREATE INDEX idx_exercise_completions_user_assignment
     ON exercise_completions(user_id, assignment_id);
 ```
 
+### V13__add_schedule_fields.sql *(v1.3)*
+
+```sql
+ALTER TABLE schedule_activities ADD COLUMN instructor VARCHAR(255);
+ALTER TABLE schedule_activities ADD COLUMN max_capacity INTEGER;
+```
+
 ---
 
-## 7. Ejemplo de Service y Controller
+## 7. DTOs — Referencia Completa
 
-### 7.1 MembershipService (lógica de negocio clave)
+### 7.1 GymInfoDto *(v1.3: +memberCount, +coachCount)*
+
+```java
+public class GymInfoDto {
+    private Long id;
+    private String name;
+    private String slug;
+    private String description;
+    private String logoUrl;
+    private String routineCycle;
+    private String userRole;    // rol del usuario autenticado en este gym (null si no es miembro)
+    private int memberCount;    // cantidad de miembros ACTIVE
+    private int coachCount;     // cantidad de COACH o ADMIN_COACH con status ACTIVE
+}
+```
+
+> `memberCount` y `coachCount` solo se populan en `GET /api/gyms/{gymId}/info`.
+> En `createGym`, `updateSettings` y `searchGyms` se retornan como `0`.
+
+### 7.2 GymMemberDto *(v1.3: +avatarUrl, +assignedCoachId, +assignedCoachName)*
+
+```java
+public class GymMemberDto {
+    private Long id;
+    private Long userId;
+    private Long gymId;
+    private String fullName;          // desde User
+    private String email;             // desde User
+    private String avatarUrl;         // desde User  ← v1.3
+    private String role;              // MemberRole.name()
+    private String status;            // MembershipStatus.name()
+    private LocalDateTime membershipExpiresAt;
+    private LocalDateTime createdAt;
+    private Long assignedCoachId;     // userId del coach activo ← v1.3
+    private String assignedCoachName; // fullName del coach activo ← v1.3
+}
+```
+
+> `assignedCoachId` y `assignedCoachName` solo se populan en `GET /api/gyms/{gymId}/admin/members`.
+> En operaciones de un solo miembro (approve, reject, block, etc.) se retornan como `null`.
+
+### 7.3 ProgressDto *(v1.3: +lastActivityAt, BlockProgressDto +percentComplete)*
+
+```java
+public class ProgressDto {
+    private Long assignmentId;
+    private String templateName;
+    private int totalExercises;
+    private int completedExercises;
+    private int percentComplete;
+    private List<BlockProgressDto> blockProgress;
+    private LocalDateTime lastActivityAt; // MAX(completed_at) — null si nada completado ← v1.3
+
+    public static class BlockProgressDto {
+        private Long blockId;
+        private String blockName;
+        private int totalExercises;
+        private int completedExercises;
+        private int percentComplete;        // ← v1.3
+        private List<Long> completedExerciseIds;
+    }
+}
+```
+
+### 7.4 RoutineTemplateDto *(v1.3: +createdByName)*
+
+```java
+public class RoutineTemplateDto {
+    private Long id;
+    private String name;
+    private String description;
+    private Long createdBy;
+    private String createdByName; // fullName del usuario que creó la plantilla ← v1.3
+    private List<TemplateBlockDto> blocks;
+    private LocalDateTime createdAt;
+}
+```
+
+### 7.5 RoutineAssignmentDto *(v1.3: NUEVO)*
+
+```java
+public class RoutineAssignmentDto {
+    private Long id;
+    private Long gymId;
+    private Long templateId;
+    private String templateName;    // nombre de la plantilla asignada
+    private Long memberUserId;
+    private String memberName;      // fullName del miembro
+    private String memberAvatarUrl; // avatarUrl del miembro
+    private Long assignedBy;
+    private LocalDate startsAt;
+    private LocalDate endsAt;
+}
+```
+
+### 7.6 ScheduleActivityDto *(v1.3: +instructor, +maxCapacity)*
+
+```java
+public class ScheduleActivityDto {
+    private Long id;
+    private String name;
+    private String description;
+    private Integer dayOfWeek;    // 1=Lunes ... 7=Domingo
+    private LocalTime startTime;
+    private LocalTime endTime;
+    private Boolean isActive;
+    private String instructor;    // ← v1.3
+    private Integer maxCapacity;  // ← v1.3
+}
+```
+
+### 7.7 ApiResponse (wrapper estándar)
+
+```java
+@Getter
+@AllArgsConstructor
+public class ApiResponse<T> {
+    private boolean success;
+    private T data;
+    private ApiError error;
+
+    public static <T> ApiResponse<T> success(T data) {
+        return new ApiResponse<>(true, data, null);
+    }
+
+    public static <T> ApiResponse<T> error(int code, String message) {
+        return new ApiResponse<>(false, null, new ApiError(code, message));
+    }
+}
+```
+
+Todas las respuestas de la API siguen este formato:
+
+```json
+{
+  "success": true,
+  "data": { ... },
+  "error": null
+}
+```
+
+---
+
+## 8. Repositories — Queries Relevantes
+
+### GymMemberRepository
+
+```java
+// Membership check (sin filtro Hibernate — para TenantInterceptor)
+@Query("SELECT gm FROM GymMember gm WHERE gm.userId = :userId AND gm.gymId = :gymId AND gm.status IN :statuses")
+Optional<GymMember> findMembershipDirect(Long userId, Long gymId, List<MembershipStatus> statuses);
+
+// Conteo para GymInfoDto (v1.3)
+long countByGymIdAndStatus(Long gymId, MembershipStatus status);
+long countByGymIdAndRoleInAndStatus(Long gymId, List<MemberRole> roles, MembershipStatus status);
+```
+
+### CoachAssignmentRepository
+
+```java
+// Asignaciones activas de un coach (unassignedAt IS NULL)
+List<CoachAssignment> findByGymIdAndCoachUserIdAndUnassignedAtIsNull(Long gymId, Long coachUserId);
+
+// Todas las asignaciones activas del gym — para enriquecer GymMemberDto (v1.3)
+@Query("SELECT ca FROM CoachAssignment ca WHERE ca.gymId = :gymId AND ca.unassignedAt IS NULL")
+List<CoachAssignment> findActiveByGymId(Long gymId);
+```
+
+### RoutineAssignmentRepository
+
+```java
+// Rutina activa por miembro (para endpoint de miembro/coach)
+Optional<RoutineAssignment> findFirstByMemberUserIdAndGymIdAndStartsAtLessThanEqualAndEndsAtGreaterThanEqual(
+    Long memberUserId, Long gymId, LocalDate today1, LocalDate today2);
+
+// Rutina activa por miembro — para coach progress endpoint (v1.3)
+@Query("SELECT ra FROM RoutineAssignment ra WHERE ra.memberUserId = :memberUserId " +
+       "AND ra.gymId = :gymId AND ra.startsAt <= :today AND ra.endsAt >= :today")
+Optional<RoutineAssignment> findActiveByMemberUserIdAndGymId(Long memberUserId, Long gymId, LocalDate today);
+```
+
+### ExerciseCompletionRepository
+
+```java
+// Progreso del miembro
+List<ExerciseCompletion> findByAssignmentIdAndUserIdAndIsCompleted(Long assignmentId, Long userId, Boolean isCompleted);
+
+// Última actividad para ProgressDto (v1.3)
+@Query("SELECT MAX(ec.completedAt) FROM ExerciseCompletion ec " +
+       "WHERE ec.assignmentId = :assignmentId AND ec.isCompleted = true")
+Optional<LocalDateTime> findLastActivityByAssignmentId(Long assignmentId);
+```
+
+---
+
+## 9. Ejemplo de Service y Controller
+
+### 9.1 MembershipService (lógica de negocio clave)
 
 ```java
 @Service
@@ -1270,13 +1482,12 @@ public class MembershipService {
     private final GymMemberRepository gymMemberRepository;
     private final GymRepository gymRepository;
     private final UserRepository userRepository;
+    private final CoachAssignmentRepository coachAssignmentRepository; // ← v1.3
 
     public GymMemberDto requestJoin(Long userId, Long gymId) {
-        // Validar que el gym existe
         gymRepository.findById(gymId)
             .orElseThrow(() -> new ResourceNotFoundException("Gym not found"));
 
-        // Validar que no existe solicitud pendiente o membresía activa
         Optional<GymMember> existing = gymMemberRepository
             .findByUserIdAndGymIdAndStatusIn(userId, gymId,
                 List.of(MembershipStatus.PENDING, MembershipStatus.ACTIVE));
@@ -1290,43 +1501,46 @@ public class MembershipService {
         member.setGymId(gymId);
         member.setRole(MemberRole.MEMBER);
         member.setStatus(MembershipStatus.PENDING);
-        member.setCreatedAt(LocalDateTime.now());
 
         return toDto(gymMemberRepository.save(member));
     }
 
-    public GymMemberDto approve(Long gymId, Long memberId, LocalDateTime expiresAt) {
-        GymMember member = gymMemberRepository.findById(memberId)
-            .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
+    // listMembers() enriquece cada GymMemberDto con datos de coach asignado (v1.3)
+    public List<GymMemberDto> listMembers(Long gymId) {
+        List<CoachAssignment> activeAssignments = coachAssignmentRepository.findActiveByGymId(gymId);
 
-        // Validación de tenant
-        if (!member.getGymId().equals(gymId)) {
-            throw new TenantViolationException("Member does not belong to this gym");
+        Map<Long, CoachAssignment> coachByMemberId = activeAssignments.stream()
+            .collect(Collectors.toMap(CoachAssignment::getMemberUserId, ca -> ca, (a, b) -> a));
+
+        Map<Long, String> coachNameById = new HashMap<>();
+        for (CoachAssignment ca : activeAssignments) {
+            coachNameById.computeIfAbsent(ca.getCoachUserId(),
+                id -> userRepository.findById(id).map(User::getFullName).orElse(null));
         }
 
-        if (member.getStatus() != MembershipStatus.PENDING) {
-            throw new BusinessException("Can only approve PENDING memberships");
-        }
-
-        member.setStatus(MembershipStatus.ACTIVE);
-        member.setMembershipExpiresAt(expiresAt);
-        member.setUpdatedAt(LocalDateTime.now());
-
-        return toDto(gymMemberRepository.save(member));
-    }
-
-    public List<MembershipDto> getUserMemberships(Long userId) {
-        // Este método NO filtra por gym_id — devuelve todos los gyms del usuario
-        return gymMemberRepository.findByUserIdAndStatusIn(userId,
-                List.of(MembershipStatus.ACTIVE, MembershipStatus.PENDING))
-            .stream()
-            .map(this::toMembershipDto)
+        return gymMemberRepository.findByGymId(gymId).stream()
+            .map(m -> toDtoWithCoach(m, coachByMemberId.get(m.getUserId()), coachNameById))
             .toList();
     }
 }
 ```
 
-### 7.2 MembershipController
+### 9.2 TrackingService — getProgressByMember (v1.3)
+
+```java
+// Retorna el progreso de la rutina activa de un miembro (vista de coach)
+@Transactional(readOnly = true)
+public ProgressDto getProgressByMember(Long gymId, Long coachUserId, Long memberUserId) {
+    LocalDate today = LocalDate.now();
+    RoutineAssignment assignment = assignmentRepository
+        .findActiveByMemberUserIdAndGymId(memberUserId, gymId, today)
+        .orElseThrow(() -> new ResourceNotFoundException(
+            "No hay rutina activa para el miembro: " + memberUserId));
+    return getProgress(gymId, memberUserId, assignment.getId());
+}
+```
+
+### 9.3 MembershipController
 
 ```java
 @RestController
@@ -1334,8 +1548,6 @@ public class MembershipService {
 public class MembershipController {
 
     private final MembershipService membershipService;
-
-    // --- Member endpoints (consumidos por app móvil) ---
 
     @PostMapping("/api/gyms/{gymId}/join-request")
     public ResponseEntity<ApiResponse<GymMemberDto>> requestJoin(
@@ -1351,8 +1563,6 @@ public class MembershipController {
         return ResponseEntity.ok(
             ApiResponse.success(membershipService.getUserMemberships(userId)));
     }
-
-    // --- Admin endpoints (consumidos por panel web) ---
 
     @PreAuthorize("@gymAccess.hasRole(#gymId, 'ADMIN')")
     @GetMapping("/api/gyms/{gymId}/admin/members")
@@ -1386,43 +1596,7 @@ public class MembershipController {
 
 ---
 
-## 8. DTOs y Response Wrapper
-
-### ApiResponse.java (wrapper estándar)
-
-```java
-@Getter
-@AllArgsConstructor
-public class ApiResponse<T> {
-    private boolean success;
-    private T data;
-    private ApiError error;
-
-    public static <T> ApiResponse<T> success(T data) {
-        return new ApiResponse<>(true, data, null);
-    }
-
-    public static <T> ApiResponse<T> error(int code, String message) {
-        return new ApiResponse<>(false, null, new ApiError(code, message));
-    }
-}
-```
-
-Todas las respuestas de la API siguen este formato:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "error": null
-}
-```
-
-Esto permite que ambos clientes (web y app) parseen la respuesta con la misma estructura.
-
----
-
-## 9. Dockerfile
+## 10. Dockerfile
 
 ```dockerfile
 # Build stage
@@ -1445,9 +1619,9 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 
 ---
 
-## 10. Testing
+## 11. Testing
 
-**70 tests unitarios** — todos passing. Framework: JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`). No levanta contexto Spring (excepto `SggApiApplicationTests`).
+**73 tests unitarios** — todos passing. Framework: JUnit 5 + Mockito (`@ExtendWith(MockitoExtension.class)`). No levanta contexto Spring (excepto `SggApiApplicationTests`).
 
 ### Archivos de test
 
@@ -1455,13 +1629,13 @@ ENTRYPOINT ["java", "-jar", "app.jar"]
 |---|---|---|
 | `SggApiApplicationTests` | 1 | Context load con H2 |
 | `UserServiceTest` | 6 | syncUser (crear/actualizar), getProfile, updateProfile |
-| `GymServiceTest` | 10 | createGym, getGymInfo, searchGyms, updateSettings |
-| `MembershipServiceTest` | 18 | requestJoin, approve, reject, block, listMembers, getUserMemberships, listCoaches, updateRole |
+| `GymServiceTest` | 10 | createGym, getGymInfo (+memberCount/coachCount), searchGyms, updateSettings |
+| `MembershipServiceTest` | 19 | requestJoin, approve, reject, block, listMembers (+coach asignado), getUserMemberships, listCoaches, updateRole |
 | `CoachAssignmentServiceTest` | 7 | assign, unassign, listByGym, listByCoach |
 | `RoutineTemplateServiceTest` | 8 | create (con blocks/exercises), listByGym, getById, delete |
-| `RoutineAssignmentServiceTest` | 7 | assign (fechas válidas/inválidas), getActiveRoutineForMember |
-| `TrackingServiceTest` | 7 | complete (nuevo/existente), undo, getProgress (% cálculo) |
-| `ScheduleServiceTest` | 6 | create, delete (ok/not found/gym erróneo), listActive |
+| `RoutineAssignmentServiceTest` | 7 | assign (→ RoutineAssignmentDto), getActiveRoutineForMember, getAssignmentsForMember |
+| `TrackingServiceTest` | 9 | complete (nuevo/existente), undo, getProgress (+lastActivityAt), getProgressByMember |
+| `ScheduleServiceTest` | 6 | create (+instructor/maxCapacity), delete (ok/not found/gym erróneo), listActive |
 
 ### Patrón de test
 
@@ -1471,6 +1645,8 @@ class MembershipServiceTest {
 
     @Mock GymMemberRepository gymMemberRepository;
     @Mock GymRepository gymRepository;
+    @Mock UserRepository userRepository;
+    @Mock CoachAssignmentRepository coachAssignmentRepository;  // ← v1.3
 
     @InjectMocks MembershipService membershipService;
 
@@ -1483,7 +1659,7 @@ class MembershipServiceTest {
 
         GymMemberDto result = membershipService.requestJoin(10L, 1L);
 
-        assertThat(result.getStatus()).isEqualTo(MembershipStatus.PENDING);
+        assertThat(result.getStatus()).isEqualTo("PENDING");
     }
 }
 ```
@@ -1502,16 +1678,13 @@ void clearTenant() {
 ### Ejecutar tests
 
 ```bash
-# Desde la raíz del proyecto
-./mvnw test
-
-# O con Maven local
+# Con Maven local
 mvn test
 ```
 
 ---
 
-## 11. Referencia de Endpoints
+## 12. Referencia de Endpoints
 
 > Ver listado interactivo en `http://localhost:8080/doc`
 
@@ -1526,7 +1699,7 @@ mvn test
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
 | POST | `/api/gyms` | Autenticado | Crea un gimnasio (el creador queda como ADMIN_COACH) |
-| GET | `/api/gyms/{gymId}/info` | Autenticado | Info del gimnasio + rol del usuario |
+| GET | `/api/gyms/{gymId}/info` | Autenticado | Info del gimnasio + rol del usuario + memberCount + coachCount |
 | PUT | `/api/gyms/{gymId}/admin/settings` | ADMIN | Actualiza nombre, descripción, logo, routineCycle |
 | GET | `/api/gyms/search?q=` | Público | Busca gimnasios por nombre |
 
@@ -1535,7 +1708,7 @@ mvn test
 |---|---|---|---|
 | POST | `/api/gyms/{gymId}/join-request` | Autenticado | Solicita unirse al gym |
 | GET | `/api/users/me/memberships` | Autenticado | Mis membresías activas/pendientes |
-| GET | `/api/gyms/{gymId}/admin/members` | ADMIN | Lista todos los miembros con estado y rol |
+| GET | `/api/gyms/{gymId}/admin/members` | ADMIN | Lista miembros con fullName, email, avatarUrl, coach asignado |
 | GET | `/api/gyms/{gymId}/admin/coaches` | ADMIN | Lista miembros con rol COACH o ADMIN_COACH activos |
 | PUT | `/api/gyms/{gymId}/admin/members/{memberId}/role` | ADMIN | Cambia el rol de un miembro activo |
 | PUT | `/api/gyms/{gymId}/admin/members/{memberId}/approve` | ADMIN | Aprueba solicitud pendiente |
@@ -1555,14 +1728,14 @@ mvn test
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
 | POST | `/api/gyms/{gymId}/coach/routine-templates` | COACH | Crea plantilla con bloques y ejercicios |
-| GET | `/api/gyms/{gymId}/coach/routine-templates` | COACH | Lista plantillas del gym |
-| GET | `/api/gyms/{gymId}/coach/routine-templates/{templateId}` | COACH | Detalle de plantilla |
+| GET | `/api/gyms/{gymId}/coach/routine-templates` | COACH | Lista plantillas del gym (con createdByName) |
+| GET | `/api/gyms/{gymId}/coach/routine-templates/{templateId}` | COACH | Detalle de plantilla (con createdByName) |
 | DELETE | `/api/gyms/{gymId}/coach/routine-templates/{templateId}` | COACH | Elimina plantilla |
 
 ### Routine Assignments
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/gyms/{gymId}/coach/routine-assignments` | COACH | Asigna plantilla a miembro con fechas |
+| POST | `/api/gyms/{gymId}/coach/routine-assignments` | COACH | Asigna plantilla a miembro — retorna RoutineAssignmentDto |
 | GET | `/api/gyms/{gymId}/member/routine` | MEMBER | Mi rutina activa hoy |
 | GET | `/api/gyms/{gymId}/coach/members/{memberId}/routine` | COACH | Rutina activa de un miembro |
 
@@ -1571,18 +1744,19 @@ mvn test
 |---|---|---|---|
 | POST | `/api/gyms/{gymId}/member/tracking/complete` | MEMBER | Marca ejercicio como completado |
 | POST | `/api/gyms/{gymId}/member/tracking/undo` | MEMBER | Revierte ejercicio a no completado |
-| GET | `/api/gyms/{gymId}/member/tracking/progress/{assignmentId}` | MEMBER | Progreso (% y detalle por bloque) |
+| GET | `/api/gyms/{gymId}/member/tracking/progress/{assignmentId}` | MEMBER | Progreso con lastActivityAt y percentComplete por bloque |
+| GET | `/api/gyms/{gymId}/coach/members/{memberId}/progress` | COACH | **v1.3** — Progreso de la rutina activa de un miembro |
 
 ### Schedule
 | Método | Path | Rol | Descripción |
 |---|---|---|---|
-| GET | `/api/gyms/{gymId}/schedule` | Público | Lista actividades activas del gym |
-| POST | `/api/gyms/{gymId}/admin/schedule` | ADMIN | Agrega actividad al horario |
+| GET | `/api/gyms/{gymId}/schedule` | Público | Lista actividades activas (con instructor y maxCapacity) |
+| POST | `/api/gyms/{gymId}/admin/schedule` | ADMIN | Agrega actividad al horario (acepta instructor y maxCapacity) |
 | DELETE | `/api/gyms/{gymId}/admin/schedule/{activityId}` | ADMIN | Desactiva actividad (soft delete) |
 
 ---
 
-## 12. Convenciones del Proyecto
+## 13. Convenciones del Proyecto
 
 | Aspecto | Convención |
 |---|---|
@@ -1595,6 +1769,16 @@ mvn test
 | IDs | `Long` (BIGSERIAL en PostgreSQL) |
 | Transacciones | `@Transactional` en service layer, nunca en controllers |
 | Validación | Bean Validation (`@Valid`) en controllers, lógica de negocio en services |
+
+---
+
+## 14. Changelog
+
+| Versión | Fecha | Cambios |
+|---|---|---|
+| 1.3 | 22 feb 2026 | GymInfoDto +memberCount/coachCount; GymMemberDto +avatarUrl/assignedCoach; ProgressDto +lastActivityAt, BlockProgressDto +percentComplete; RoutineTemplateDto +createdByName; nuevo RoutineAssignmentDto; ScheduleActivity/Dto/Request +instructor/maxCapacity; nuevo endpoint `GET /coach/members/{memberId}/progress`; V13 migración schedule fields; 73 tests |
+| 1.2 | 21 feb 2026 | Flujo completo de coaches implementado; endpoints coach/member/tracking completos |
+| 1.1 | — | Estructura inicial, multi-tenancy, autenticación dev-mode |
 
 ---
 

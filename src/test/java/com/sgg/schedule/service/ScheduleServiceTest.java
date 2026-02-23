@@ -45,6 +45,8 @@ class ScheduleServiceTest {
         activity.setStartTime(LocalTime.of(9, 0));
         activity.setEndTime(LocalTime.of(10, 0));
         activity.setIsActive(true);
+        activity.setInstructor("Carlos");
+        activity.setMaxCapacity(20);
     }
 
     // --- create ---
@@ -57,6 +59,8 @@ class ScheduleServiceTest {
         request.setDayOfWeek(1);
         request.setStartTime(LocalTime.of(9, 0));
         request.setEndTime(LocalTime.of(10, 0));
+        request.setInstructor("Carlos");
+        request.setMaxCapacity(20);
 
         when(activityRepository.save(any(ScheduleActivity.class))).thenReturn(activity);
 
@@ -65,7 +69,11 @@ class ScheduleServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getName()).isEqualTo("Spinning");
         assertThat(result.getIsActive()).isTrue();
-        verify(activityRepository).save(argThat(a -> a.getGymId().equals(GYM_ID) && a.getIsActive()));
+        assertThat(result.getInstructor()).isEqualTo("Carlos");
+        assertThat(result.getMaxCapacity()).isEqualTo(20);
+        verify(activityRepository).save(argThat(a ->
+                a.getGymId().equals(GYM_ID) && a.getIsActive()
+                && "Carlos".equals(a.getInstructor()) && Integer.valueOf(20).equals(a.getMaxCapacity())));
     }
 
     // --- delete ---

@@ -2,7 +2,6 @@ package com.sgg.tracking.controller;
 
 import com.sgg.common.dto.ApiResponse;
 import com.sgg.common.security.CurrentUser;
-import com.sgg.common.security.TenantContext;
 import com.sgg.tracking.dto.CompleteExerciseRequest;
 import com.sgg.tracking.dto.ProgressDto;
 import com.sgg.tracking.service.TrackingService;
@@ -11,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "Tracking", description = "Registro de ejercicios completados y progreso de rutina")
@@ -48,5 +48,16 @@ public class TrackingController {
             @CurrentUser Long userId) {
         return ResponseEntity.ok(
                 ApiResponse.success(trackingService.getProgress(gymId, userId, assignmentId)));
+    }
+
+    @Operation(summary = "[COACH] Progreso de un miembro", description = "Retorna el progreso de la rutina activa de un miembro específico.")
+    @PreAuthorize("@gymAccess.hasRole(#gymId, 'COACH')")
+    @GetMapping("/api/gyms/{gymId}/coach/members/{memberId}/progress")
+    public ResponseEntity<ApiResponse<ProgressDto>> getMemberProgress(
+            @PathVariable Long gymId,
+            @PathVariable Long memberId,
+            @CurrentUser Long userId) {
+        return ResponseEntity.ok(
+                ApiResponse.success(trackingService.getProgressByMember(gymId, userId, memberId)));
     }
 }

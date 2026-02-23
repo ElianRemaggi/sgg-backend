@@ -16,4 +16,6 @@ public class ScheduleActivityDto {
     private LocalTime startTime;
     private LocalTime endTime;
     private Boolean isActive;
+    private String instructor;
+    private Integer maxCapacity;
 }

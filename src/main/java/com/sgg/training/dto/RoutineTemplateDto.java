@@ -14,6 +14,7 @@ public class RoutineTemplateDto {
     private String name;
     private String description;
     private Long createdBy;
+    private String createdByName;
     private List<TemplateBlockDto> blocks;
     private LocalDateTime createdAt;
 }

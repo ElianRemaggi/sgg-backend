@@ -1,5 +1,7 @@
 package com.sgg.tenancy.service;
 
+import com.sgg.coaching.entity.CoachAssignment;
+import com.sgg.coaching.repository.CoachAssignmentRepository;
 import com.sgg.common.exception.BusinessException;
 import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.common.exception.TenantViolationException;
@@ -19,8 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,6 +36,7 @@ public class MembershipService {
     private final GymMemberRepository gymMemberRepository;
     private final GymRepository gymRepository;
     private final UserRepository userRepository;
+    private final CoachAssignmentRepository coachAssignmentRepository;
 
     public GymMemberDto requestJoin(Long userId, Long gymId) {
         gymRepository.findById(gymId)
@@ -142,8 +148,21 @@ public class MembershipService {
 
     @Transactional(readOnly = true)
     public List<GymMemberDto> listMembers(Long gymId) {
+        List<CoachAssignment> activeAssignments = coachAssignmentRepository.findActiveByGymId(gymId);
+
+        // Map memberUserId -> CoachAssignment (first assignment wins if multiple)
+        Map<Long, CoachAssignment> coachByMemberId = activeAssignments.stream()
+                .collect(Collectors.toMap(CoachAssignment::getMemberUserId, ca -> ca, (a, b) -> a));
+
+        // Batch-load coach names
+        Map<Long, String> coachNameById = new HashMap<>();
+        for (CoachAssignment ca : activeAssignments) {
+            coachNameById.computeIfAbsent(ca.getCoachUserId(),
+                    id -> userRepository.findById(id).map(User::getFullName).orElse(null));
+        }
+
         return gymMemberRepository.findByGymId(gymId).stream()
-                .map(this::toDto)
+                .map(m -> toDtoWithCoach(m, coachByMemberId.get(m.getUserId()), coachNameById))
                 .toList();
     }
 
@@ -176,10 +195,33 @@ public class MembershipService {
                 member.getGymId(),
                 user != null ? user.getFullName() : "Unknown",
                 user != null ? user.getEmail() : "",
+                user != null ? user.getAvatarUrl() : null,
                 member.getRole().name(),
                 member.getStatus().name(),
                 member.getMembershipExpiresAt(),
-                member.getCreatedAt()
+                member.getCreatedAt(),
+                null,
+                null
+        );
+    }
+
+    private GymMemberDto toDtoWithCoach(GymMember member, CoachAssignment coach, Map<Long, String> coachNames) {
+        User user = userRepository.findById(member.getUserId()).orElse(null);
+        Long assignedCoachId = coach != null ? coach.getCoachUserId() : null;
+        String assignedCoachName = assignedCoachId != null ? coachNames.get(assignedCoachId) : null;
+        return new GymMemberDto(
+                member.getId(),
+                member.getUserId(),
+                member.getGymId(),
+                user != null ? user.getFullName() : "Unknown",
+                user != null ? user.getEmail() : "",
+                user != null ? user.getAvatarUrl() : null,
+                member.getRole().name(),
+                member.getStatus().name(),
+                member.getMembershipExpiresAt(),
+                member.getCreatedAt(),
+                assignedCoachId,
+                assignedCoachName
         );
     }
 

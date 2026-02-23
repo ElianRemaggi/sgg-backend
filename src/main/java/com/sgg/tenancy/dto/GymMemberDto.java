@@ -17,8 +17,11 @@ public class GymMemberDto {
     private Long gymId;
     private String fullName;
     private String email;
+    private String avatarUrl;
     private String role;
     private String status;
     private LocalDateTime membershipExpiresAt;
     private LocalDateTime createdAt;
+    private Long assignedCoachId;
+    private String assignedCoachName;
 }
