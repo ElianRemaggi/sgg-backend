@@ -1,6 +1,8 @@
 package com.sgg.training.service;
 
 import com.sgg.common.exception.ResourceNotFoundException;
+import com.sgg.identity.entity.User;
+import com.sgg.identity.repository.UserRepository;
 import com.sgg.training.dto.CreateTemplateRequest;
 import com.sgg.training.dto.RoutineTemplateDto;
 import com.sgg.training.entity.RoutineTemplate;
@@ -16,15 +18,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class RoutineTemplateServiceTest {
 
     @Mock
     private RoutineTemplateRepository templateRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private RoutineTemplateService routineTemplateService;
@@ -44,6 +51,12 @@ class RoutineTemplateServiceTest {
         savedTemplate.setDescription("Descripción rutina A");
         savedTemplate.setCreatedBy(COACH_ID);
         savedTemplate.setBlocks(new ArrayList<>());
+
+        User coachUser = new User();
+        coachUser.setId(COACH_ID);
+        coachUser.setFullName("Coach Juan");
+        coachUser.setEmail("juan@gym.com");
+        lenient().when(userRepository.findById(COACH_ID)).thenReturn(Optional.of(coachUser));
     }
 
     // --- create ---

@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -15,6 +16,7 @@ public class ProgressDto {
     private int completedExercises;
     private int percentComplete;
     private List<BlockProgressDto> blockProgress;
+    private LocalDateTime lastActivityAt; // MAX(completed_at) de exercise_completions
 
     @Getter @Setter @NoArgsConstructor @AllArgsConstructor
     public static class BlockProgressDto {
@@ -22,6 +24,7 @@ public class ProgressDto {
         private String blockName;
         private int totalExercises;
         private int completedExercises;
+        private int percentComplete;
         private List<Long> completedExerciseIds;
     }
 }

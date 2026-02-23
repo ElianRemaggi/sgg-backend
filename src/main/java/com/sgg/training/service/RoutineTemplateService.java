@@ -1,7 +1,8 @@
 package com.sgg.training.service;
 
 import com.sgg.common.exception.ResourceNotFoundException;
-import com.sgg.common.security.TenantContext;
+import com.sgg.identity.entity.User;
+import com.sgg.identity.repository.UserRepository;
 import com.sgg.training.dto.*;
 import com.sgg.training.entity.RoutineTemplate;
 import com.sgg.training.entity.TemplateBlock;
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RoutineTemplateService {
 
     private final RoutineTemplateRepository templateRepository;
+    private final UserRepository userRepository;
 
     public RoutineTemplateDto create(Long gymId, Long createdBy, CreateTemplateRequest request) {
         RoutineTemplate template = new RoutineTemplate();
@@ -74,6 +76,12 @@ public class RoutineTemplateService {
     }
 
     public RoutineTemplateDto toDto(RoutineTemplate t) {
+        String createdByName = null;
+        if (t.getCreatedBy() != null) {
+            createdByName = userRepository.findById(t.getCreatedBy())
+                    .map(User::getFullName)
+                    .orElse(null);
+        }
         List<TemplateBlockDto> blocks = t.getBlocks().stream()
                 .map(b -> new TemplateBlockDto(
                         b.getId(), b.getName(), b.getDayNumber(), b.getSortOrder(),
@@ -84,6 +92,6 @@ public class RoutineTemplateService {
                                 .toList()))
                 .toList();
         return new RoutineTemplateDto(t.getId(), t.getName(), t.getDescription(),
-                t.getCreatedBy(), blocks, t.getCreatedAt());
+                t.getCreatedBy(), createdByName, blocks, t.getCreatedAt());
     }
 }

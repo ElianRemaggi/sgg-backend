@@ -41,6 +41,11 @@ public class ScheduleActivity {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
+    private String instructor;
+
+    @Column(name = "max_capacity")
+    private Integer maxCapacity;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

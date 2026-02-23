@@ -1,6 +1,5 @@
 package com.sgg.tenancy.dto;
 
-import com.sgg.tenancy.entity.Gym;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,5 +16,7 @@ public class GymInfoDto {
     private String description;
     private String logoUrl;
     private String routineCycle;
-    private String userRole; // rol del usuario autenticado en este gym
+    private String userRole;   // rol del usuario autenticado en este gym
+    private int memberCount;   // COUNT de gym_members con status ACTIVE
+    private int coachCount;    // COUNT de gym_members con rol COACH o ADMIN_COACH y status ACTIVE
 }

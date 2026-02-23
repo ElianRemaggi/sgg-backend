@@ -1,5 +1,7 @@
 package com.sgg.tenancy.service;
 
+import com.sgg.coaching.entity.CoachAssignment;
+import com.sgg.coaching.repository.CoachAssignmentRepository;
 import com.sgg.common.exception.BusinessException;
 import com.sgg.common.exception.ResourceNotFoundException;
 import com.sgg.common.exception.TenantViolationException;
@@ -40,6 +42,9 @@ class MembershipServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private CoachAssignmentRepository coachAssignmentRepository;
 
     @InjectMocks
     private MembershipService membershipService;
@@ -212,12 +217,38 @@ class MembershipServiceTest {
 
     @Test
     void listMembers_returnsAllMembersOfGym() {
+        when(coachAssignmentRepository.findActiveByGymId(GYM_ID)).thenReturn(List.of());
         when(gymMemberRepository.findByGymId(GYM_ID)).thenReturn(List.of(pendingMember, activeMember));
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
 
         List<GymMemberDto> result = membershipService.listMembers(GYM_ID);
 
         assertThat(result).hasSize(2);
+        assertThat(result.get(0).getAvatarUrl()).isNull(); // user has no avatarUrl set
+    }
+
+    @Test
+    void listMembers_includesAssignedCoachInfo_whenCoachAssigned() {
+        CoachAssignment coachAssignment = new CoachAssignment();
+        coachAssignment.setCoachUserId(99L);
+        coachAssignment.setMemberUserId(USER_ID);
+        coachAssignment.setGymId(GYM_ID);
+
+        User coachUser = new User();
+        coachUser.setId(99L);
+        coachUser.setFullName("Coach Pedro");
+        coachUser.setEmail("pedro@gym.com");
+
+        when(coachAssignmentRepository.findActiveByGymId(GYM_ID)).thenReturn(List.of(coachAssignment));
+        when(gymMemberRepository.findByGymId(GYM_ID)).thenReturn(List.of(activeMember));
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(userRepository.findById(99L)).thenReturn(Optional.of(coachUser));
+
+        List<GymMemberDto> result = membershipService.listMembers(GYM_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getAssignedCoachId()).isEqualTo(99L);
+        assertThat(result.get(0).getAssignedCoachName()).isEqualTo("Coach Pedro");
     }
 
     // --- listCoaches ---

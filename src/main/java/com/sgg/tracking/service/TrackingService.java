@@ -7,13 +7,14 @@ import com.sgg.tracking.entity.ExerciseCompletion;
 import com.sgg.tracking.repository.ExerciseCompletionRepository;
 import com.sgg.training.entity.RoutineAssignment;
 import com.sgg.training.entity.RoutineTemplate;
-import com.sgg.training.entity.TemplateBlock;
 import com.sgg.training.repository.RoutineAssignmentRepository;
 import com.sgg.training.repository.RoutineTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -79,18 +80,23 @@ public class TrackingService {
                 .map(ExerciseCompletion::getExerciseId)
                 .collect(Collectors.toSet());
 
-        int total = 0;
         List<ProgressDto.BlockProgressDto> blockProgressList = template.getBlocks().stream()
                 .map(block -> {
                     List<Long> completedInBlock = block.getExercises().stream()
                             .map(e -> e.getId())
                             .filter(completedIds::contains)
                             .toList();
+                    int blockTotal = block.getExercises().size();
+                    int blockCompleted = completedInBlock.size();
+                    int blockPercent = blockTotal > 0
+                            ? (int) Math.round((blockCompleted * 100.0) / blockTotal)
+                            : 0;
                     return new ProgressDto.BlockProgressDto(
                             block.getId(),
                             block.getName(),
-                            block.getExercises().size(),
-                            completedInBlock.size(),
+                            blockTotal,
+                            blockCompleted,
+                            blockPercent,
                             completedInBlock
                     );
                 })
@@ -103,13 +109,31 @@ public class TrackingService {
                 ? (int) Math.round((completedExercises * 100.0) / totalExercises)
                 : 0;
 
+        LocalDateTime lastActivityAt = completionRepository
+                .findLastActivityByAssignmentId(assignmentId)
+                .orElse(null);
+
         return new ProgressDto(
                 assignmentId,
                 template.getName(),
                 totalExercises,
                 completedExercises,
                 percent,
-                blockProgressList
+                blockProgressList,
+                lastActivityAt
         );
+    }
+
+    /**
+     * Retorna el progreso de la rutina activa de un miembro (vista de coach).
+     */
+    @Transactional(readOnly = true)
+    public ProgressDto getProgressByMember(Long gymId, Long coachUserId, Long memberUserId) {
+        LocalDate today = LocalDate.now();
+        RoutineAssignment assignment = assignmentRepository
+                .findActiveByMemberUserIdAndGymId(memberUserId, gymId, today)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No hay rutina activa para el miembro: " + memberUserId));
+        return getProgress(gymId, memberUserId, assignment.getId());
     }
 }

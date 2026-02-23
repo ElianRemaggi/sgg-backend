@@ -27,6 +27,8 @@ public class ScheduleService {
         activity.setStartTime(request.getStartTime());
         activity.setEndTime(request.getEndTime());
         activity.setIsActive(true);
+        activity.setInstructor(request.getInstructor());
+        activity.setMaxCapacity(request.getMaxCapacity());
         return toDto(activityRepository.save(activity));
     }
 
@@ -50,6 +52,7 @@ public class ScheduleService {
     private ScheduleActivityDto toDto(ScheduleActivity a) {
         return new ScheduleActivityDto(
                 a.getId(), a.getName(), a.getDescription(),
-                a.getDayOfWeek(), a.getStartTime(), a.getEndTime(), a.getIsActive());
+                a.getDayOfWeek(), a.getStartTime(), a.getEndTime(), a.getIsActive(),
+                a.getInstructor(), a.getMaxCapacity());
     }
 }

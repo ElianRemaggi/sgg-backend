@@ -27,4 +27,8 @@ public class CreateScheduleRequest {
 
     @NotNull
     private LocalTime endTime;
+
+    private String instructor;
+
+    private Integer maxCapacity;
 }

@@ -4,8 +4,9 @@ import com.sgg.common.dto.ApiResponse;
 import com.sgg.common.security.CurrentUser;
 import com.sgg.training.dto.AssignRoutineRequest;
 import com.sgg.training.dto.MemberRoutineDto;
-import com.sgg.training.entity.RoutineAssignment;
+import com.sgg.training.dto.RoutineAssignmentDto;
 import com.sgg.training.service.RoutineAssignmentService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,7 +25,7 @@ public class RoutineAssignmentController {
     @Operation(summary = "[COACH] Asignar rutina", description = "Asigna una plantilla de rutina a un miembro con fechas de vigencia. La fecha de fin debe ser posterior a la de inicio.")
     @PreAuthorize("@gymAccess.hasRole(#gymId, 'COACH')")
     @PostMapping("/api/gyms/{gymId}/coach/routine-assignments")
-    public ResponseEntity<ApiResponse<RoutineAssignment>> assign(
+    public ResponseEntity<ApiResponse<RoutineAssignmentDto>> assign(
             @PathVariable Long gymId,
             @CurrentUser Long userId,
             @RequestBody @Valid AssignRoutineRequest request) {

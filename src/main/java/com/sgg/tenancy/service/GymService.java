@@ -50,7 +50,7 @@ public class GymService {
         ownerMember.setStatus(MembershipStatus.ACTIVE);
         gymMemberRepository.save(ownerMember);
 
-        return toDto(saved, MemberRole.ADMIN_COACH.name());
+        return toDto(saved, MemberRole.ADMIN_COACH.name(), 0, 0);
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +69,11 @@ public class GymService {
                     .orElse(null);
         }
 
-        return toDto(gym, userRole);
+        int memberCount = (int) gymMemberRepository.countByGymIdAndStatus(gymId, MembershipStatus.ACTIVE);
+        int coachCount = (int) gymMemberRepository.countByGymIdAndRoleInAndStatus(
+                gymId, List.of(MemberRole.COACH, MemberRole.ADMIN_COACH), MembershipStatus.ACTIVE);
+
+        return toDto(gym, userRole, memberCount, coachCount);
     }
 
     public GymInfoDto updateSettings(Long gymId, UpdateGymRequest request) {
@@ -89,17 +93,17 @@ public class GymService {
             gym.setRoutineCycle(Gym.RoutineCycle.valueOf(request.getRoutineCycle()));
         }
 
-        return toDto(gymRepository.save(gym), null);
+        return toDto(gymRepository.save(gym), null, 0, 0);
     }
 
     @Transactional(readOnly = true)
     public List<GymInfoDto> searchGyms(String query) {
         return gymRepository.findByNameContainingIgnoreCase(query).stream()
-                .map(g -> toDto(g, null))
+                .map(g -> toDto(g, null, 0, 0))
                 .toList();
     }
 
-    private GymInfoDto toDto(Gym gym, String userRole) {
+    private GymInfoDto toDto(Gym gym, String userRole, int memberCount, int coachCount) {
         return new GymInfoDto(
                 gym.getId(),
                 gym.getName(),
@@ -107,7 +111,9 @@ public class GymService {
                 gym.getDescription(),
                 gym.getLogoUrl(),
                 gym.getRoutineCycle().name(),
-                userRole
+                userRole,
+                memberCount,
+                coachCount
         );
     }
 }

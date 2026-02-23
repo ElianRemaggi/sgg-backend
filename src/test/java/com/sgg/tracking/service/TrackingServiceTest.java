@@ -19,12 +19,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -200,10 +202,14 @@ class TrackingServiceTest {
         ExerciseCompletion c2 = new ExerciseCompletion();
         c2.setExerciseId(EXERCISE_3_ID);
 
+        LocalDateTime lastActivity = LocalDateTime.now().minusHours(1);
+
         when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
         when(templateRepository.findById(TEMPLATE_ID)).thenReturn(Optional.of(template));
         when(completionRepository.findByAssignmentIdAndUserIdAndIsCompleted(ASSIGNMENT_ID, USER_ID, true))
                 .thenReturn(List.of(c1, c2));
+        when(completionRepository.findLastActivityByAssignmentId(ASSIGNMENT_ID))
+                .thenReturn(Optional.of(lastActivity));
 
         ProgressDto result = trackingService.getProgress(GYM_ID, USER_ID, ASSIGNMENT_ID);
 
@@ -211,6 +217,9 @@ class TrackingServiceTest {
         assertThat(result.getCompletedExercises()).isEqualTo(2);
         assertThat(result.getPercentComplete()).isEqualTo(67);
         assertThat(result.getBlockProgress()).hasSize(2);
+        assertThat(result.getLastActivityAt()).isEqualTo(lastActivity);
+        // Verify percentComplete is set on BlockProgressDto
+        assertThat(result.getBlockProgress().get(0).getPercentComplete()).isGreaterThanOrEqualTo(0);
     }
 
     @Test
@@ -219,12 +228,15 @@ class TrackingServiceTest {
         when(templateRepository.findById(TEMPLATE_ID)).thenReturn(Optional.of(template));
         when(completionRepository.findByAssignmentIdAndUserIdAndIsCompleted(ASSIGNMENT_ID, USER_ID, true))
                 .thenReturn(List.of());
+        when(completionRepository.findLastActivityByAssignmentId(ASSIGNMENT_ID))
+                .thenReturn(Optional.empty());
 
         ProgressDto result = trackingService.getProgress(GYM_ID, USER_ID, ASSIGNMENT_ID);
 
         assertThat(result.getTotalExercises()).isEqualTo(3);
         assertThat(result.getCompletedExercises()).isEqualTo(0);
         assertThat(result.getPercentComplete()).isEqualTo(0);
+        assertThat(result.getLastActivityAt()).isNull();
     }
 
     @Test
@@ -234,5 +246,38 @@ class TrackingServiceTest {
         assertThatThrownBy(() -> trackingService.getProgress(GYM_ID, USER_ID, ASSIGNMENT_ID))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining(String.valueOf(ASSIGNMENT_ID));
+    }
+
+    // --- getProgressByMember ---
+
+    @Test
+    void getProgressByMember_success_whenActivRoutineExists() {
+        ExerciseCompletion c1 = new ExerciseCompletion();
+        c1.setExerciseId(EXERCISE_1_ID);
+
+        when(assignmentRepository.findActiveByMemberUserIdAndGymId(eq(USER_ID), eq(GYM_ID), any(LocalDate.class)))
+                .thenReturn(Optional.of(assignment));
+        when(assignmentRepository.findById(ASSIGNMENT_ID)).thenReturn(Optional.of(assignment));
+        when(templateRepository.findById(TEMPLATE_ID)).thenReturn(Optional.of(template));
+        when(completionRepository.findByAssignmentIdAndUserIdAndIsCompleted(ASSIGNMENT_ID, USER_ID, true))
+                .thenReturn(List.of(c1));
+        when(completionRepository.findLastActivityByAssignmentId(ASSIGNMENT_ID))
+                .thenReturn(Optional.empty());
+
+        ProgressDto result = trackingService.getProgressByMember(GYM_ID, 2L, USER_ID);
+
+        assertThat(result).isNotNull();
+        assertThat(result.getAssignmentId()).isEqualTo(ASSIGNMENT_ID);
+        assertThat(result.getCompletedExercises()).isEqualTo(1);
+    }
+
+    @Test
+    void getProgressByMember_throws_whenNoActiveRoutine() {
+        when(assignmentRepository.findActiveByMemberUserIdAndGymId(eq(USER_ID), eq(GYM_ID), any(LocalDate.class)))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trackingService.getProgressByMember(GYM_ID, 2L, USER_ID))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining(String.valueOf(USER_ID));
     }
 }
